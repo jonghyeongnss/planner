@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>가계부 · 일기장</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@300;400;500;600&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    /* ── DIARY SPECIFIC ── */
+
+    .diary-layout {
+      display: grid;
+      grid-template-columns: 260px 1fr;
+      gap: 20px;
+      align-items: start;
+    }
+
+    /* SIDEBAR: calendar + list */
+    .sidebar { display: flex; flex-direction: column; gap: 14px; }
+
+    /* Mini calendar */
+    .cal-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      box-shadow: var(--shadow-sm);
+    }
+    .cal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border-light);
+    }
+    .cal-title {
+      font-family: 'DM Mono', monospace;
+      font-size: 13px;
+      font-weight: 500;
+    }
+    .cal-nav-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--text-muted);
+      font-size: 14px;
+      padding: 2px 7px;
+      border-radius: 4px;
+      transition: background .13s;
+    }
+    .cal-nav-btn:hover { background: var(--surface-2); }
+
+    .cal-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      padding: 10px 10px 12px;
+      gap: 2px;
+    }
+    .cal-dow {
+      font-size: 10px;
+      font-family: 'DM Mono', monospace;
+      color: var(--text-faint);
+      text-align: center;
+      padding: 4px 0;
+    }
+    .cal-day {
+      font-size: 12px;
+      text-align: center;
+      padding: 5px 2px;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: background .1s;
+      position: relative;
+      color: var(--text);
+      font-family: 'DM Mono', monospace;
+    }
+    .cal-day:hover { background: var(--surface-2); }
+    .cal-day.today { background: var(--accent-light); color: var(--accent); font-weight: 500; }
+    .cal-day.selected { background: var(--text); color: #fff; }
+    .cal-day.selected.today { background: var(--accent); }
+    .cal-day.has-entry::after {
+      content: '';
+      display: block;
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: var(--gold);
+      margin: 1px auto 0;
+    }
+    .cal-day.empty { pointer-events: none; color: transparent; }
+    .cal-day.other-month { color: var(--text-faint); }
+
+    /* Entry list */
+    .entry-list-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      box-shadow: var(--shadow-sm);
+    }
+    .entry-list-hdr {
+      padding: 12px 16px 10px;
+      border-bottom: 1px solid var(--border-light);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+    .entry-items { max-height: 320px; overflow-y: auto; }
+    .entry-item {
+      padding: 11px 16px;
+      border-bottom: 1px solid var(--border-light);
+      cursor: pointer;
+      transition: background .1s;
+    }
+    .entry-item:last-child { border-bottom: none; }
+    .entry-item:hover { background: var(--bg); }
+    .entry-item.active { background: var(--accent-light); }
+    .entry-item-date {
+      font-family: 'DM Mono', monospace;
+      font-size: 10.5px;
+      color: var(--text-muted);
+      margin-bottom: 2px;
+    }
+    .entry-item-preview {
+      font-size: 12.5px;
+      color: var(--text);
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+    .entry-list-empty { padding: 24px 16px; font-size: 12px; color: var(--text-faint); text-align: center; }
+
+    /* MAIN EDITOR */
+    .editor-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-sm);
+      overflow: hidden;
+    }
+    .editor-topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 22px;
+      border-bottom: 1px solid var(--border-light);
+      gap: 12px;
+    }
+    .editor-date-display {
+      font-family: 'DM Mono', monospace;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text);
+    }
+    .editor-actions { display: flex; gap: 8px; align-items: center; }
+
+    .mood-row {
+      display: flex;
+      gap: 6px;
+      padding: 12px 22px;
+      border-bottom: 1px solid var(--border-light);
+      align-items: center;
+    }
+    .mood-label { font-size: 11px; color: var(--text-muted); margin-right: 4px; }
+    .mood-btn {
+      font-size: 18px;
+      padding: 4px 7px;
+      border: 1px solid transparent;
+      border-radius: 6px;
+      background: none;
+      cursor: pointer;
+      transition: background .12s, border-color .12s;
+      line-height: 1;
+    }
+    .mood-btn:hover { background: var(--surface-2); }
+    .mood-btn.selected { background: var(--accent-light); border-color: var(--accent); }
+
+    .tags-row {
+      display: flex;
+      gap: 6px;
+      padding: 10px 22px;
+      border-bottom: 1px solid var(--border-light);
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .tag-label { font-size: 11px; color: var(--text-muted); margin-right: 2px; }
+    .tag-btn {
+      font-size: 11px;
+      font-family: 'DM Mono', monospace;
+      padding: 3px 10px;
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      background: none;
+      cursor: pointer;
+      color: var(--text-muted);
+      transition: all .12s;
+    }
+    .tag-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .tag-btn.selected { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+    .editor-title-input {
+      width: 100%;
+      font-size: 17px;
+      font-weight: 500;
+      padding: 16px 22px 10px;
+      border: none;
+      border-bottom: 1px solid var(--border-light);
+      border-radius: 0;
+      background: transparent;
+      font-family: 'Noto Serif KR', serif;
+    }
+    .editor-title-input:focus { outline: none; background: transparent; border-color: var(--border-light); }
+    .editor-title-input::placeholder { color: var(--text-faint); }
+
+    textarea#diaryBody {
+      width: 100%;
+      min-height: 340px;
+      padding: 18px 22px;
+      border: none;
+      border-radius: 0;
+      background: transparent;
+      font-size: 14px;
+      line-height: 1.85;
+      resize: vertical;
+      color: var(--text);
+      font-family: 'Noto Serif KR', serif;
+    }
+    textarea#diaryBody:focus { outline: none; background: transparent; border-color: transparent; }
+    textarea#diaryBody::placeholder { color: var(--text-faint); }
+
+    .editor-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 22px;
+      border-top: 1px solid var(--border-light);
+      background: var(--bg);
+    }
+    .word-count { font-size: 11px; font-family: 'DM Mono', monospace; color: var(--text-faint); }
+
+    /* save toast */
+    .toast {
+      position: fixed;
+      bottom: 28px;
+      left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: var(--text);
+      color: #fff;
+      font-size: 12px;
+      font-family: 'DM Mono', monospace;
+      padding: 8px 18px;
+      border-radius: 20px;
+      opacity: 0;
+      transition: opacity .2s, transform .2s;
+      pointer-events: none;
+      z-index: 999;
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    @media (max-width: 720px) {
+      .diary-layout { grid-template-columns: 1fr; }
+      .sidebar { flex-direction: row; flex-wrap: wrap; }
+      .cal-card { flex: 1; min-width: 220px; }
+      .entry-list-card { flex: 1; min-width: 200px; }
+    }
+  </style>
+</head>
+<body>
+
+<nav>
+  <a class="nav-logo" href="index.html">가계<em>부</em></a>
+  <div class="nav-links">
+    <a class="nav-link" href="index.html">월별 내역</a>
+    <a class="nav-link" href="plan.html">장기 계획</a>
+    <a class="nav-link active" href="diary.html">일기장</a>
+  </div>
+</nav>
+
+<div class="container">
+  <div class="page-header">
+    <div class="page-title">일기장</div>
+    <div class="page-sub">하루의 기록</div>
+  </div>
+
+  <div class="diary-layout">
+
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+
+      <!-- mini calendar -->
+      <div class="cal-card">
+        <div class="cal-header">
+          <button class="cal-nav-btn" id="calPrev">&#8592;</button>
+          <div class="cal-title" id="calTitle"></div>
+          <button class="cal-nav-btn" id="calNext">&#8594;</button>
+        </div>
+        <div class="cal-grid" id="calGrid"></div>
+      </div>
+
+      <!-- recent entries list -->
+      <div class="entry-list-card">
+        <div class="entry-list-hdr">최근 일기</div>
+        <div class="entry-items" id="entryList">
+          <div class="entry-list-empty">아직 작성된 일기가 없습니다.</div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- EDITOR -->
+    <div class="editor-card">
+      <div class="editor-topbar">
+        <div class="editor-date-display" id="editorDateLabel"></div>
+        <div class="editor-actions">
+          <button class="btn btn-ghost" onclick="newEntry()" style="font-size:12px;padding:6px 14px">새 글</button>
+          <button class="btn btn-primary" onclick="saveEntry()" style="font-size:12px;padding:6px 14px">저장</button>
+          <button class="btn-danger-ghost" id="deleteBtn" onclick="deleteEntry()" title="삭제" style="font-size:17px">×</button>
+        </div>
+      </div>
+
+      <div class="mood-row">
+        <span class="mood-label">기분</span>
+        <button class="mood-btn" data-mood="😊" onclick="setMood('😊')" title="좋음">😊</button>
+        <button class="mood-btn" data-mood="😐" onclick="setMood('😐')" title="보통">😐</button>
+        <button class="mood-btn" data-mood="😔" onclick="setMood('😔')" title="우울">😔</button>
+        <button class="mood-btn" data-mood="😤" onclick="setMood('😤')" title="화남">😤</button>
+        <button class="mood-btn" data-mood="😴" onclick="setMood('😴')" title="피곤">😴</button>
+        <button class="mood-btn" data-mood="🤩" onclick="setMood('🤩')" title="신남">🤩</button>
+      </div>
+
+      <div class="tags-row">
+        <span class="tag-label">태그</span>
+        <button class="tag-btn" data-tag="일상" onclick="toggleTag('일상')">일상</button>
+        <button class="tag-btn" data-tag="재무" onclick="toggleTag('재무')">재무</button>
+        <button class="tag-btn" data-tag="운동" onclick="toggleTag('운동')">운동</button>
+        <button class="tag-btn" data-tag="독서" onclick="toggleTag('독서')">독서</button>
+        <button class="tag-btn" data-tag="여행" onclick="toggleTag('여행')">여행</button>
+        <button class="tag-btn" data-tag="공부" onclick="toggleTag('공부')">공부</button>
+        <button class="tag-btn" data-tag="감사" onclick="toggleTag('감사')">감사</button>
+      </div>
+
+      <input type="text" id="diaryTitle" class="editor-title-input" placeholder="제목 (선택)" />
+      <textarea id="diaryBody" placeholder="오늘의 이야기를 써보세요…"></textarea>
+
+      <div class="editor-footer">
+        <div class="word-count" id="wordCount">0자</div>
+        <div style="font-size:11px;color:var(--text-faint);font-family:'DM Mono',monospace" id="lastSaved"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<footer>일기는 브라우저 localStorage에 저장됩니다</footer>
+
+<script>
+const DKEY = 'kb_diary';
+
+function loadDiary() { try { return JSON.parse(localStorage.getItem(DKEY)) || {}; } catch { return {}; } }
+function saveDiary(d) { localStorage.setItem(DKEY, JSON.stringify(d)); }
+
+// state
+let diary = loadDiary();
+let calYear, calMonth;
+let selectedDate;
+let selectedMood = '';
+let selectedTags = [];
+let curEntryDate = null; // date key of entry being edited
+
+function today() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+function formatDateKo(dateStr) {
+  const [y,m,d] = dateStr.split('-');
+  const days = ['일','월','화','수','목','금','토'];
+  const dow = new Date(+y,+m-1,+d).getDay();
+  return `${y}년 ${+m}월 ${+d}일 (${days[dow]})`;
+}
+
+// ── CALENDAR ──
+function initCal() {
+  const d = new Date();
+  calYear  = d.getFullYear();
+  calMonth = d.getMonth();
+}
+
+function renderCal() {
+  document.getElementById('calTitle').textContent =
+    `${calYear}.${String(calMonth+1).padStart(2,'0')}`;
+
+  const grid = document.getElementById('calGrid');
+  grid.innerHTML = '';
+  const dows = ['일','월','화','수','목','금','토'];
+  dows.forEach(d => {
+    const el = document.createElement('div');
+    el.className = 'cal-dow';
+    el.textContent = d;
+    grid.appendChild(el);
+  });
+
+  const first = new Date(calYear, calMonth, 1).getDay();
+  const daysInMonth = new Date(calYear, calMonth+1, 0).getDate();
+  const todayStr = today();
+
+  for (let i = 0; i < first; i++) {
+    const el = document.createElement('div');
+    el.className = 'cal-day empty';
+    grid.appendChild(el);
+  }
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dateStr = `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const el = document.createElement('div');
+    el.className = 'cal-day';
+    el.textContent = d;
+    if (dateStr === todayStr) el.classList.add('today');
+    if (dateStr === selectedDate) el.classList.add('selected');
+    if (diary[dateStr]) el.classList.add('has-entry');
+    el.onclick = () => selectDate(dateStr);
+    grid.appendChild(el);
+  }
+}
+
+document.getElementById('calPrev').onclick = () => {
+  calMonth--;
+  if (calMonth < 0) { calMonth = 11; calYear--; }
+  renderCal();
+};
+document.getElementById('calNext').onclick = () => {
+  calMonth++;
+  if (calMonth > 11) { calMonth = 0; calYear++; }
+  renderCal();
+};
+
+// ── ENTRY LIST ──
+function renderEntryList() {
+  const el = document.getElementById('entryList');
+  const entries = Object.keys(diary).sort((a,b) => b.localeCompare(a));
+  el.innerHTML = '';
+  if (!entries.length) {
+    el.innerHTML = '<div class="entry-list-empty">아직 작성된 일기가 없습니다.</div>';
+    return;
+  }
+  entries.forEach(date => {
+    const e = diary[date];
+    const div = document.createElement('div');
+    div.className = 'entry-item' + (date === selectedDate ? ' active' : '');
+    const preview = (e.title || e.body || '').substring(0, 40);
+    div.innerHTML = `
+      <div class="entry-item-date">${date.replace(/-/g,'.')} ${e.mood||''}</div>
+      <div class="entry-item-preview">${esc(preview) || '(내용 없음)'}</div>
+    `;
+    div.onclick = () => selectDate(date);
+    el.appendChild(div);
+  });
+}
+
+// ── SELECT DATE ──
+function selectDate(dateStr) {
+  selectedDate = dateStr;
+  curEntryDate = dateStr;
+  document.getElementById('editorDateLabel').textContent = formatDateKo(dateStr);
+
+  const e = diary[dateStr];
+  if (e) {
+    document.getElementById('diaryTitle').value = e.title || '';
+    document.getElementById('diaryBody').value  = e.body  || '';
+    setMood(e.mood || '');
+    selectedTags = e.tags ? [...e.tags] : [];
+    renderTagBtns();
+    document.getElementById('lastSaved').textContent = e.saved ? '저장됨 ' + e.saved : '';
+  } else {
+    document.getElementById('diaryTitle').value = '';
+    document.getElementById('diaryBody').value  = '';
+    setMood('');
+    selectedTags = [];
+    renderTagBtns();
+    document.getElementById('lastSaved').textContent = '';
+  }
+  updateWordCount();
+  renderCal();
+  renderEntryList();
+}
+
+// ── NEW ENTRY ──
+function newEntry() {
+  selectDate(today());
+}
+
+// ── MOOD ──
+function setMood(m) {
+  selectedMood = m;
+  document.querySelectorAll('.mood-btn').forEach(b => {
+    b.classList.toggle('selected', b.dataset.mood === m);
+  });
+}
+
+// ── TAGS ──
+function toggleTag(tag) {
+  if (selectedTags.includes(tag)) {
+    selectedTags = selectedTags.filter(t => t !== tag);
+  } else {
+    selectedTags.push(tag);
+  }
+  renderTagBtns();
+}
+function renderTagBtns() {
+  document.querySelectorAll('.tag-btn').forEach(b => {
+    b.classList.toggle('selected', selectedTags.includes(b.dataset.tag));
+  });
+}
+
+// ── SAVE ──
+function saveEntry() {
+  if (!curEntryDate) return;
+  const now = new Date();
+  const timeStr = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+  diary[curEntryDate] = {
+    title: document.getElementById('diaryTitle').value,
+    body:  document.getElementById('diaryBody').value,
+    mood:  selectedMood,
+    tags:  [...selectedTags],
+    saved: timeStr,
+  };
+  saveDiary(diary);
+  document.getElementById('lastSaved').textContent = '저장됨 ' + timeStr;
+  showToast('저장되었습니다');
+  renderCal();
+  renderEntryList();
+}
+
+// ── DELETE ──
+function deleteEntry() {
+  if (!curEntryDate || !diary[curEntryDate]) return;
+  if (!confirm(`${curEntryDate}의 일기를 삭제할까요?`)) return;
+  delete diary[curEntryDate];
+  saveDiary(diary);
+  document.getElementById('diaryTitle').value = '';
+  document.getElementById('diaryBody').value  = '';
+  setMood('');
+  selectedTags = [];
+  renderTagBtns();
+  document.getElementById('lastSaved').textContent = '';
+  renderCal();
+  renderEntryList();
+  showToast('삭제되었습니다');
+}
+
+// ── WORD COUNT ──
+function updateWordCount() {
+  const body = document.getElementById('diaryBody').value;
+  document.getElementById('wordCount').textContent = body.length + '자';
+}
+document.getElementById('diaryBody').addEventListener('input', updateWordCount);
+
+// ── TOAST ──
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+// ── AUTO SAVE on blur ──
+document.getElementById('diaryBody').addEventListener('blur', () => {
+  if (curEntryDate && document.getElementById('diaryBody').value) saveEntry();
+});
+
+// ── ESC HTML ──
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+// ── KEYBOARD SHORTCUT ──
+document.addEventListener('keydown', e => {
+  if ((e.metaKey || e.ctrlKey) && e.key === 's') { e.preventDefault(); saveEntry(); }
+});
+
+// ── INIT ──
+initCal();
+selectDate(today());
+renderCal();
+renderEntryList();
+</script>
+</body>
+</html>

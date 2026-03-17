@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>가계부 · 장기 계획</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@300;400;500;600&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    /* ── PLAN PAGE SPECIFIC ── */
+
+    .plan-grid {
+      display: grid;
+      grid-template-columns: 340px 1fr;
+      gap: 20px;
+      align-items: start;
+    }
+
+    /* Input panel */
+    .input-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .panel-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px 20px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .panel-card .sect-title { margin-bottom: 12px; }
+
+    .field-list { display: flex; flex-direction: column; gap: 10px; }
+    .field-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .field-row label {
+      font-size: 12.5px;
+      color: var(--text);
+      flex: 1;
+      white-space: nowrap;
+    }
+    .field-row input {
+      width: 130px;
+      flex-shrink: 0;
+      text-align: right;
+    }
+    .field-row .unit {
+      font-size: 11.5px;
+      color: var(--text-muted);
+      font-family: 'DM Mono', monospace;
+      min-width: 28px;
+    }
+
+    /* streams list */
+    .stream-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 12px;
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-sm);
+      background: var(--bg);
+      font-size: 12.5px;
+      animation: rowIn .15s ease;
+    }
+    .stream-name { flex: 1; }
+    .stream-amt  { font-family: 'DM Mono', monospace; font-size: 12px; }
+    .stream-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; min-height: 10px; }
+
+    .stream-form {
+      display: grid;
+      grid-template-columns: 1fr 100px 90px auto;
+      gap: 7px;
+      align-items: end;
+    }
+    .stream-form input, .stream-form select { font-size: 12px; padding: 7px 10px; }
+    .stream-form .btn { padding: 7px 14px; font-size: 12px; }
+
+    /* right panel: chart + table */
+    .right-panel { display: flex; flex-direction: column; gap: 16px; }
+
+    /* summary cards at top of right */
+    .proj-cards {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+
+    /* chart */
+    .chart-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px 22px;
+      box-shadow: var(--shadow-sm);
+    }
+    .chart-title {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-bottom: 16px;
+      font-family: 'DM Mono', monospace;
+    }
+    canvas#projChart { width: 100% !important; }
+
+    /* projection table */
+    .proj-table-wrap {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      box-shadow: var(--shadow-sm);
+    }
+    .proj-table-wrap table thead th { background: var(--surface); }
+    .proj-table-wrap td { font-family: 'DM Mono', monospace; font-size: 12px; }
+    .proj-table-wrap td:first-child { font-family: 'Noto Serif KR', serif; font-size: 12.5px; }
+
+    /* milestone bar */
+    .milestone-bar {
+      height: 4px;
+      border-radius: 2px;
+      background: var(--border-light);
+      overflow: hidden;
+      margin-top: 4px;
+    }
+    .milestone-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent), var(--gold));
+      border-radius: 2px;
+      transition: width .4s ease;
+    }
+
+    @media (max-width: 800px) {
+      .plan-grid { grid-template-columns: 1fr; }
+      .proj-cards { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<nav>
+  <a class="nav-logo" href="index.html">가계<em>부</em></a>
+  <div class="nav-links">
+    <a class="nav-link" href="index.html">월별 내역</a>
+    <a class="nav-link active" href="plan.html">장기 계획</a>
+    <a class="nav-link" href="diary.html">일기장</a>
+  </div>
+</nav>
+
+<div class="container">
+
+  <div class="page-header">
+    <div class="page-title">장기 재무 계획</div>
+    <div class="page-sub">수입 · 지출 · 투자 수익을 시뮬레이션하여 목표 자산을 계획합니다</div>
+  </div>
+
+  <div class="plan-grid">
+
+    <!-- LEFT: INPUT PANEL -->
+    <div class="input-panel">
+
+      <!-- 기본 설정 -->
+      <div class="panel-card">
+        <div class="sect-title">기본 설정</div>
+        <div class="field-list">
+          <div class="field-row">
+            <label>현재 보유 자산</label>
+            <input type="number" id="initAsset" value="0" min="0" />
+            <span class="unit">만원</span>
+          </div>
+          <div class="field-row">
+            <label>시뮬레이션 기간</label>
+            <input type="number" id="simYears" value="10" min="1" max="50" />
+            <span class="unit">년</span>
+          </div>
+          <div class="field-row">
+            <label>목표 자산</label>
+            <input type="number" id="goalAsset" value="10000" min="0" />
+            <span class="unit">만원</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 월 수입 -->
+      <div class="panel-card">
+        <div class="sect-title">월 수입 항목</div>
+        <div class="stream-list" id="incomeList"></div>
+        <div class="stream-form">
+          <div class="form-group" style="gap:4px">
+            <label style="font-size:10.5px;color:var(--text-muted)">항목명</label>
+            <input type="text" id="inName" placeholder="예: 월급" />
+          </div>
+          <div class="form-group" style="gap:4px">
+            <label style="font-size:10.5px;color:var(--text-muted)">금액(만원)</label>
+            <input type="number" id="inAmt" placeholder="0" min="0" />
+          </div>
+          <div class="form-group" style="gap:4px">
+            <label style="font-size:10.5px;color:var(--text-muted)">연 증가율</label>
+            <input type="number" id="inGrow" placeholder="0" step="0.1" />
+          </div>
+          <button class="btn btn-primary" style="align-self:flex-end;padding:7px 10px" onclick="addStream('income')">+</button>
+        </div>
+      </div>
+
+      <!-- 월 지출 -->
+      <div class="panel-card">
+        <div class="sect-title">월 지출 항목</div>
+        <div class="stream-list" id="expenseList"></div>
+        <div class="stream-form">
+          <div class="form-group" style="gap:4px">
+            <label style="font-size:10.5px;color:var(--text-muted)">항목명</label>
+            <input type="text" id="exName" placeholder="예: 생활비" />
+          </div>
+          <div class="form-group" style="gap:4px">
+            <label style="font-size:10.5px;color:var(--text-muted)">금액(만원)</label>
+            <input type="number" id="exAmt" placeholder="0" min="0" />
+          </div>
+          <div class="form-group" style="gap:4px">
+            <label style="font-size:10.5px;color:var(--text-muted)">연 증가율</label>
+            <input type="number" id="exGrow" placeholder="0" step="0.1" />
+          </div>
+          <button class="btn btn-primary" style="align-self:flex-end;padding:7px 10px;background:var(--danger)" onclick="addStream('expense')">+</button>
+        </div>
+      </div>
+
+      <!-- 투자 -->
+      <div class="panel-card">
+        <div class="sect-title">투자 설정</div>
+        <div class="field-list">
+          <div class="field-row">
+            <label>월 투자 금액</label>
+            <input type="number" id="invMonthly" value="0" min="0" />
+            <span class="unit">만원</span>
+          </div>
+          <div class="field-row">
+            <label>연 기대 수익률</label>
+            <input type="number" id="invReturn" value="5" step="0.1" />
+            <span class="unit">%</span>
+          </div>
+          <div class="field-row">
+            <label>월 저축 금액</label>
+            <input type="number" id="saveMonthly" value="0" min="0" />
+            <span class="unit">만원</span>
+          </div>
+        </div>
+      </div>
+
+      <button class="btn btn-primary" style="width:100%;padding:11px" onclick="compute()">계획 시뮬레이션 실행</button>
+
+    </div><!-- /left -->
+
+    <!-- RIGHT: RESULTS -->
+    <div class="right-panel">
+
+      <div class="proj-cards">
+        <div class="card">
+          <div class="stat-label">예상 최종 자산</div>
+          <div class="stat-value c-gold mono" id="r_final">—</div>
+          <div class="stat-sub" id="r_finalSub">시뮬레이션 후</div>
+        </div>
+        <div class="card">
+          <div class="stat-label">투자 포트폴리오</div>
+          <div class="stat-value c-green mono" id="r_invest">—</div>
+          <div class="stat-sub">복리 수익 포함</div>
+        </div>
+        <div class="card">
+          <div class="stat-label">목표 달성</div>
+          <div class="stat-value mono" id="r_goal">—</div>
+          <div class="milestone-bar"><div class="milestone-fill" id="r_goalBar" style="width:0%"></div></div>
+        </div>
+      </div>
+
+      <div class="chart-card">
+        <div class="chart-title">연도별 자산 추이</div>
+        <canvas id="projChart" height="240"></canvas>
+      </div>
+
+      <div class="proj-table-wrap">
+        <div style="padding:13px 20px;border-bottom:1px solid var(--border-light)">
+          <div class="sect-title" style="margin:0">연도별 상세</div>
+        </div>
+        <div style="max-height:340px;overflow-y:auto">
+          <table>
+            <thead>
+              <tr>
+                <th>연도</th>
+                <th style="text-align:right">연 수입</th>
+                <th style="text-align:right">연 지출</th>
+                <th style="text-align:right">저축 잔액</th>
+                <th style="text-align:right">투자 잔액</th>
+                <th style="text-align:right">총 자산</th>
+              </tr>
+            </thead>
+            <tbody id="projBody"></tbody>
+          </table>
+          <div class="empty" id="projEmpty">시뮬레이션을 실행하세요.</div>
+        </div>
+      </div>
+
+    </div><!-- /right -->
+  </div><!-- /plan-grid -->
+</div>
+
+<footer>모든 수치는 예측값이며 실제 결과와 다를 수 있습니다</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+const PKEY = 'kb_plan';
+
+function loadPlan() { try { return JSON.parse(localStorage.getItem(PKEY)) || { income:[], expense:[] }; } catch { return {income:[],expense:[]}; } }
+function savePlan(d) { localStorage.setItem(PKEY, JSON.stringify(d)); }
+
+let plan = loadPlan();
+let chart = null;
+
+// ── STREAM RENDER ──
+function renderStreams() {
+  renderList('income');
+  renderList('expense');
+}
+
+function renderList(type) {
+  const el = document.getElementById(type==='income'?'incomeList':'expenseList');
+  el.innerHTML = '';
+  plan[type].forEach((s, i) => {
+    const div = document.createElement('div');
+    div.className = 'stream-item';
+    const color = type==='income' ? 'var(--accent)' : 'var(--danger)';
+    div.innerHTML = `
+      <span class="stream-name">${esc(s.name)}</span>
+      <span class="stream-amt" style="color:${color}">${s.amt}만원</span>
+      <span class="badge" style="background:var(--border-light);color:var(--text-muted);font-size:10px">+${s.grow}%/년</span>
+      <button class="btn-danger-ghost" onclick="delStream('${type}',${i})">×</button>
+    `;
+    el.appendChild(div);
+  });
+}
+
+function addStream(type) {
+  const nameId  = type==='income'?'inName':'exName';
+  const amtId   = type==='income'?'inAmt':'exAmt';
+  const growId  = type==='income'?'inGrow':'exGrow';
+  const name = document.getElementById(nameId).value.trim();
+  const amt  = parseFloat(document.getElementById(amtId).value) || 0;
+  const grow = parseFloat(document.getElementById(growId).value) || 0;
+  if (!name || amt<=0) return;
+  plan[type].push({ name, amt, grow });
+  savePlan(plan);
+  document.getElementById(nameId).value = '';
+  document.getElementById(amtId).value  = '';
+  document.getElementById(growId).value = '';
+  renderStreams();
+}
+
+function delStream(type, i) {
+  plan[type].splice(i, 1);
+  savePlan(plan);
+  renderStreams();
+}
+
+// ── COMPUTE ──
+function compute() {
+  const initAsset   = parseFloat(document.getElementById('initAsset').value)   || 0;
+  const simYears    = parseInt(document.getElementById('simYears').value)       || 10;
+  const goalAsset   = parseFloat(document.getElementById('goalAsset').value)    || 0;
+  const invMonthly  = parseFloat(document.getElementById('invMonthly').value)   || 0;
+  const invReturn   = parseFloat(document.getElementById('invReturn').value)    || 0;
+  const saveMonthly = parseFloat(document.getElementById('saveMonthly').value)  || 0;
+
+  const rows = [];
+  let savingsBal = initAsset;
+  let investBal  = 0;
+  const mRate = invReturn / 100 / 12;
+
+  for (let y = 1; y <= simYears; y++) {
+    const factor = y - 1;
+    let annualIncome  = plan.income.reduce((s,x)  => s + x.amt  * 12 * Math.pow(1 + x.grow/100, factor), 0);
+    let annualExpense = plan.expense.reduce((s,x) => s + x.amt  * 12 * Math.pow(1 + x.grow/100, factor), 0);
+    const annualSave  = saveMonthly * 12;
+    const annualInv   = invMonthly  * 12;
+
+    savingsBal += annualIncome - annualExpense - annualInv; // savings = income - expense - invested
+    savingsBal += annualSave;                               // explicitly added savings
+
+    // compound monthly for invest
+    for (let mo = 0; mo < 12; mo++) {
+      investBal = investBal * (1 + mRate) + invMonthly;
+    }
+
+    rows.push({
+      year: new Date().getFullYear() + y,
+      income:  Math.round(annualIncome),
+      expense: Math.round(annualExpense),
+      savings: Math.round(savingsBal),
+      invest:  Math.round(investBal),
+      total:   Math.round(savingsBal + investBal),
+    });
+  }
+
+  renderResults(rows, goalAsset);
+}
+
+function fmt(n) { return (n<0?'-':'') + Math.abs(Math.round(n)).toLocaleString('ko-KR') + '만'; }
+
+function renderResults(rows, goal) {
+  const last = rows[rows.length - 1];
+
+  document.getElementById('r_final').textContent = fmt(last.total);
+  document.getElementById('r_finalSub').textContent = `${rows.length}년 후`;
+  document.getElementById('r_invest').textContent = fmt(last.invest);
+
+  const pct = goal > 0 ? Math.min(100, Math.round(last.total / goal * 100)) : 100;
+  document.getElementById('r_goal').textContent = pct + '%';
+  document.getElementById('r_goalBar').style.width = pct + '%';
+
+  // table
+  const tbody = document.getElementById('projBody');
+  const empty = document.getElementById('projEmpty');
+  tbody.innerHTML = '';
+  empty.style.display = 'none';
+
+  rows.forEach(r => {
+    const tr = document.createElement('tr');
+    const totalColor = r.total < 0 ? 'color:var(--danger)' : 'color:var(--gold)';
+    tr.innerHTML = `
+      <td>${r.year}년</td>
+      <td style="text-align:right;color:var(--accent)">${r.income.toLocaleString()}</td>
+      <td style="text-align:right;color:var(--danger)">${r.expense.toLocaleString()}</td>
+      <td style="text-align:right">${r.savings.toLocaleString()}</td>
+      <td style="text-align:right;color:var(--save)">${r.invest.toLocaleString()}</td>
+      <td style="text-align:right;font-weight:500;${totalColor}">${r.total.toLocaleString()}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  // chart
+  const labels = rows.map(r => `${r.year}`);
+  const savData = rows.map(r => r.savings);
+  const invData = rows.map(r => r.invest);
+  const totData = rows.map(r => r.total);
+
+  if (chart) chart.destroy();
+  const ctx = document.getElementById('projChart').getContext('2d');
+  chart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: '총 자산',
+          data: totData,
+          borderColor: '#8a6a2e',
+          backgroundColor: 'rgba(138,106,46,0.06)',
+          borderWidth: 2,
+          fill: true,
+          tension: 0.35,
+          pointRadius: 3,
+          pointHoverRadius: 5,
+        },
+        {
+          label: '투자 잔액',
+          data: invData,
+          borderColor: '#1e3a5f',
+          backgroundColor: 'transparent',
+          borderWidth: 1.5,
+          borderDash: [4,3],
+          tension: 0.35,
+          pointRadius: 2,
+        },
+        {
+          label: '저축 잔액',
+          data: savData,
+          borderColor: '#2d5a3d',
+          backgroundColor: 'transparent',
+          borderWidth: 1.5,
+          borderDash: [2,4],
+          tension: 0.35,
+          pointRadius: 2,
+        },
+      ]
+    },
+    options: {
+      responsive: true,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: {
+          position: 'top',
+          labels: { font: { family: 'DM Mono', size: 11 }, padding: 16, boxWidth: 20 }
+        },
+        tooltip: {
+          callbacks: {
+            label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y.toLocaleString()}만원`
+          }
+        }
+      },
+      scales: {
+        x: { grid: { color: '#eeeae4' }, ticks: { font: { family: 'DM Mono', size: 11 } } },
+        y: { grid: { color: '#eeeae4' }, ticks: { font: { family: 'DM Mono', size: 11 }, callback: v => v.toLocaleString()+'만' } }
+      }
+    }
+  });
+}
+
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+// init
+renderStreams();
+</script>
+</body>
+</html>

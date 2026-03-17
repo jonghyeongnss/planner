@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>가계부 · 월별 내역</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@300;400;500;600&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    /* ── PAGE-SPECIFIC ── */
+    .top-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 24px;
+    }
+    .month-nav {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .month-nav button {
+      background: none;
+      border: 1px solid var(--border);
+      cursor: pointer;
+      color: var(--text-muted);
+      font-size: 14px;
+      padding: 5px 11px;
+      border-radius: 5px;
+      transition: background .14s;
+    }
+    .month-nav button:hover { background: var(--surface-2); }
+    .month-label {
+      font-family: 'DM Mono', monospace;
+      font-size: 15px;
+      min-width: 88px;
+      text-align: center;
+      letter-spacing: 0.04em;
+    }
+
+    /* form */
+    .add-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px 22px 20px;
+      margin-bottom: 18px;
+      box-shadow: var(--shadow-sm);
+    }
+    .form-row {
+      display: grid;
+      grid-template-columns: 130px 1fr 140px 130px auto;
+      gap: 10px;
+      align-items: end;
+    }
+
+    .type-tabs {
+      display: flex;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+      background: var(--bg);
+    }
+    .type-tab {
+      flex: 1;
+      padding: 9px 10px;
+      font-size: 12px;
+      font-family: 'Noto Serif KR', serif;
+      border: none;
+      background: none;
+      cursor: pointer;
+      color: var(--text-muted);
+      transition: background .13s, color .13s;
+      text-align: center;
+    }
+    .type-tab.act-spend { background: #fdf0ec; color: #7a3020; }
+    .type-tab.act-save  { background: var(--save-light); color: var(--save); }
+    .type-tab:not(:last-child) { border-right: 1px solid var(--border); }
+
+    /* list header */
+    .list-hdr {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--border-light);
+    }
+    .filter-row { display: flex; gap: 4px; }
+    .ftab {
+      padding: 4px 12px;
+      font-size: 11.5px;
+      font-family: 'Noto Serif KR', serif;
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      background: none;
+      cursor: pointer;
+      color: var(--text-muted);
+      transition: all .13s;
+    }
+    .ftab.active { background: var(--text); color: #fff; border-color: var(--text); }
+
+    .mono-amt { font-family: 'DM Mono', monospace; font-size: 13px; }
+    .tr-date  { font-family: 'DM Mono', monospace; font-size: 11.5px; color: var(--text-muted); }
+
+    /* savings info */
+    .info-note {
+      font-size: 11.5px;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 18px;
+    }
+    .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+
+    @media (max-width: 680px) {
+      .form-row { grid-template-columns: 1fr 1fr; }
+      .form-row .btn-primary { grid-column: span 2; }
+    }
+  </style>
+</head>
+<body>
+
+<nav>
+  <a class="nav-logo" href="index.html">가계<em>부</em></a>
+  <div class="nav-links">
+    <a class="nav-link active" href="index.html">월별 내역</a>
+    <a class="nav-link" href="plan.html">장기 계획</a>
+    <a class="nav-link" href="diary.html">일기장</a>
+  </div>
+</nav>
+
+<div class="container">
+
+  <div class="top-bar">
+    <div class="page-header" style="margin:0">
+      <div class="page-title">월별 내역</div>
+      <div class="page-sub">소비 · 저축 추적</div>
+    </div>
+    <div class="month-nav">
+      <button id="prevMonth">&#8592;</button>
+      <div class="month-label" id="monthLabel"></div>
+      <button id="nextMonth">&#8594;</button>
+    </div>
+  </div>
+
+  <!-- SUMMARY -->
+  <div class="card-grid-4">
+    <div class="card">
+      <div class="stat-label">순수 소비</div>
+      <div class="stat-value c-red" id="sumSpend">₩0</div>
+      <div class="stat-sub">이번 달</div>
+    </div>
+    <div class="card">
+      <div class="stat-label">저축</div>
+      <div class="stat-value c-blue" id="sumSave">₩0</div>
+      <div class="stat-sub">자산 이전</div>
+    </div>
+    <div class="card">
+      <div class="stat-label">월 지출 합계</div>
+      <div class="stat-value" id="sumTotal">₩0</div>
+      <div class="stat-sub">소비 + 저축</div>
+    </div>
+    <div class="card">
+      <div class="stat-label">건수</div>
+      <div class="stat-value c-muted" id="sumCount">0건</div>
+      <div class="stat-sub">전체 내역</div>
+    </div>
+  </div>
+
+  <div class="info-note">
+    <span class="dot" style="background:var(--save)"></span>
+    저축은 월 지출로는 집계되지만, 자산에서 사라지는 금액이 아닙니다 — 장기 계획 페이지에서 누적 자산을 확인하세요.
+  </div>
+
+  <!-- ADD FORM -->
+  <div class="add-card">
+    <div class="sect-title">내역 추가</div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>날짜</label>
+        <input type="date" id="txDate" />
+      </div>
+      <div class="form-group">
+        <label>내용</label>
+        <input type="text" id="txDesc" placeholder="예: 마트, 교통비…" />
+      </div>
+      <div class="form-group">
+        <label>금액 (원)</label>
+        <input type="number" id="txAmount" placeholder="0" min="0" />
+      </div>
+      <div class="form-group">
+        <label>유형</label>
+        <div class="type-tabs">
+          <button class="type-tab act-spend" id="tabSpend" onclick="setType('spend')">소비</button>
+          <button class="type-tab" id="tabSave"  onclick="setType('save')">저축</button>
+        </div>
+      </div>
+      <div class="form-group">
+        <button class="btn btn-primary" onclick="addTx()">+ 추가</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- LIST -->
+  <div class="table-wrap">
+    <div class="list-hdr">
+      <div class="sect-title" style="margin:0">내역 목록</div>
+      <div class="filter-row">
+        <button class="ftab active" onclick="setFilter('all',this)">전체</button>
+        <button class="ftab" onclick="setFilter('spend',this)">소비</button>
+        <button class="ftab" onclick="setFilter('save',this)">저축</button>
+      </div>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>날짜</th>
+          <th>내용</th>
+          <th>유형</th>
+          <th style="text-align:right">금액</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="txBody"></tbody>
+    </table>
+    <div class="empty" id="empty" style="display:none">이번 달 내역이 없습니다.</div>
+  </div>
+
+</div>
+
+<footer>데이터는 브라우저 localStorage에 저장됩니다</footer>
+
+<script>
+const KEY = 'kb_ledger';
+let curMonth = (() => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+})();
+let selType = 'spend';
+let curFilter = 'all';
+
+function load() { try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch { return {}; } }
+function save(d) { localStorage.setItem(KEY, JSON.stringify(d)); }
+function getMonth(m) { return (load()[m] || []).sort((a,b) => b.date.localeCompare(a.date)); }
+
+function fmt(n) { return '₩' + Math.abs(n).toLocaleString('ko-KR'); }
+function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function render() {
+  const [y,m] = curMonth.split('-');
+  document.getElementById('monthLabel').textContent = `${y}.${m}`;
+
+  const txs = getMonth(curMonth);
+  const spend = txs.filter(t=>t.type==='spend').reduce((s,t)=>s+t.amount,0);
+  const sav   = txs.filter(t=>t.type==='save').reduce((s,t)=>s+t.amount,0);
+
+  document.getElementById('sumSpend').textContent = fmt(spend);
+  document.getElementById('sumSave').textContent  = fmt(sav);
+  document.getElementById('sumTotal').textContent = fmt(spend+sav);
+  document.getElementById('sumCount').textContent = txs.length + '건';
+
+  const filtered = curFilter==='all' ? txs : txs.filter(t=>t.type===curFilter);
+  const tbody = document.getElementById('txBody');
+  const empty = document.getElementById('empty');
+  tbody.innerHTML = '';
+
+  if (!filtered.length) { empty.style.display='block'; return; }
+  empty.style.display = 'none';
+
+  filtered.forEach(tx => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="tr-date">${tx.date.replace(/-/g,'.')}</td>
+      <td>${esc(tx.desc)}</td>
+      <td><span class="badge ${tx.type==='save'?'badge-save':'badge-spend'}">${tx.type==='save'?'저축':'소비'}</span></td>
+      <td style="text-align:right"><span class="mono-amt ${tx.type==='spend'?'c-red':'c-blue'}">${tx.type==='spend'?'−':''}${fmt(tx.amount)}</span></td>
+      <td><button class="btn-danger-ghost" onclick="delTx(${tx.id})">×</button></td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function setType(t) {
+  selType = t;
+  document.getElementById('tabSpend').className = 'type-tab' + (t==='spend'?' act-spend':'');
+  document.getElementById('tabSave').className  = 'type-tab' + (t==='save' ?' act-save':'');
+}
+
+function setFilter(f, el) {
+  curFilter = f;
+  document.querySelectorAll('.ftab').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  render();
+}
+
+function addTx() {
+  const date   = document.getElementById('txDate').value;
+  const desc   = document.getElementById('txDesc').value.trim();
+  const amount = parseInt(document.getElementById('txAmount').value, 10);
+  if (!date || !desc || !amount || amount<=0) {
+    document.querySelector('.add-card').style.outline = '2px solid var(--danger)';
+    setTimeout(()=>{ document.querySelector('.add-card').style.outline=''; }, 500);
+    return;
+  }
+  const data = load();
+  const mo = date.substring(0,7);
+  if (!data[mo]) data[mo] = [];
+  data[mo].push({ id: Date.now(), date, desc, amount, type: selType });
+  save(data);
+  document.getElementById('txDesc').value = '';
+  document.getElementById('txAmount').value = '';
+  if (mo !== curMonth) curMonth = mo;
+  render();
+}
+
+function delTx(id) {
+  const data = load();
+  if (data[curMonth]) data[curMonth] = data[curMonth].filter(t=>t.id!==id);
+  save(data);
+  render();
+}
+
+document.getElementById('prevMonth').onclick = () => {
+  const [y,m] = curMonth.split('-').map(Number);
+  const d = new Date(y, m-2, 1);
+  curMonth = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+  render();
+};
+document.getElementById('nextMonth').onclick = () => {
+  const [y,m] = curMonth.split('-').map(Number);
+  const d = new Date(y, m, 1);
+  curMonth = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+  render();
+};
+
+document.getElementById('txDate').value = new Date().toISOString().split('T')[0];
+document.getElementById('txAmount').addEventListener('keydown', e=>{ if(e.key==='Enter') addTx(); });
+document.getElementById('txDesc').addEventListener('keydown', e=>{ if(e.key==='Enter') document.getElementById('txAmount').focus(); });
+render();
+</script>
+</body>
+</html>
